@@ -27,6 +27,24 @@ pub mod basic {
 
         Ok(())
     }
+
+    pub fn add_vote_option(
+        ctx: Context<AddVoteOption>,
+        poll_id: u64,
+        option_id: u64,
+        option_title: String
+    ) -> Result<()> {
+        let vote_option = &mut ctx.accounts.vote_option;
+        let poll = &mut ctx.accounts.poll;
+
+        vote_option.option_id = option_id;
+        vote_option.title = option_title;
+        vote_option.poll_id = poll_id;
+
+        poll.total_options += 1;
+        
+        Ok(())
+    }
 }
 
 #[derive(Accounts)]
@@ -43,6 +61,31 @@ pub struct InitializePoll<'info> {
         bump
     )]
     pub poll: Account<'info, Poll>,
+
+    pub system_program: Program<'info, System>,
+}
+
+#[derive(Accounts)]
+#[instruction(poll_id: u64,vote_option_id: u64)]
+pub struct AddVoteOption<'info> {
+    #[account(mut)]
+    pub signer: Signer<'info>,
+
+    #[account(
+        mut,
+        seeds = [poll_id.to_le_bytes().as_ref()],
+        bump
+    )]
+    pub poll: Account<'info, Poll>,
+
+    #[account(
+        init,
+        payer = signer,
+        space = 8 + VoteOption::INIT_SPACE,
+        seeds = [poll_id.to_le_bytes().as_ref(),vote_option_id.to_le_bytes().as_ref()],
+        bump
+    )]
+    pub vote_option: Account<'info,VoteOption>,
 
     pub system_program: Program<'info, System>,
 }
