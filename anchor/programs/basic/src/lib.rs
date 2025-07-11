@@ -7,6 +7,8 @@ declare_id!("JAVuBXeBZqXNtS73azhBDAoYaaAFfo4gWXoZe2e7Jf8H");
 
 #[program]
 pub mod basic {
+    use anchor_lang::accounts;
+
     use super::*;
 
     pub fn initialize_poll(
@@ -46,7 +48,17 @@ pub mod basic {
         Ok(())
     }
 
-    pub fn record_vote_option(
+    pub fn delete_vote_option(
+        ctx: Context<DeleteVoteOption>,
+        poll_id: u64,
+        vote_option_id: u64
+    ) -> Result<()> {
+        let poll_account = &mut ctx.accounts.poll;
+
+        Ok(())
+    }
+
+    pub fn vote(
         ctx: Context<Vote>,
         poll_id: u64,
         vote_option_id: u64
@@ -69,8 +81,6 @@ pub mod basic {
 
         Ok(())
     }
-
-
 }
 
 #[derive(Accounts)]
@@ -114,6 +124,30 @@ pub struct AddVoteOption<'info> {
     pub vote_option: Account<'info,VoteOption>,
 
     pub system_program: Program<'info, System>,
+}
+
+#[derive(Accounts)]
+#[instruction(poll_id: u64, vote_option_id: u64)]
+pub struct DeleteVoteOption<'info> {
+    #[account(mut)]
+    pub signer: Signer<'info>,
+
+    #[account(
+        mut,
+        seeds = [poll_id.to_le_bytes().as_ref()],
+        bump
+    )]
+    pub poll: Account<'info, Poll>,
+
+    #[account(
+        mut,
+        seeds = [poll_id.to_le_bytes().as_ref(),vote_option_id.to_le_bytes().as_ref()],
+        bump,
+        close = signer
+    )]
+    pub vote_option: Account<'info,VoteOption>,
+
+    pub system_program: Program<'info,System>
 }
 
 #[derive(Accounts)]
