@@ -7,6 +7,8 @@ declare_id!("JAVuBXeBZqXNtS73azhBDAoYaaAFfo4gWXoZe2e7Jf8H");
 
 #[program]
 pub mod basic {
+    use crate::instruction::RecordVoteOption;
+
     use super::*;
 
     pub fn initialize_poll(
@@ -43,6 +45,21 @@ pub mod basic {
 
         poll.total_options += 1;
         
+        Ok(())
+    }
+
+    pub fn record_vote_option(
+        ctx: Context<Vote>,
+        poll_id: u64,
+        vote_option_id: u64
+    ) -> Result<()> {
+        let poll_account = &mut ctx.accounts.poll;
+        let vote_record = &mut ctx.accounts.vote_record;
+
+        vote_record.has_voted = true;
+        vote_record.option_id = vote_option_id;
+        vote_record.poll_id = poll_id;
+
         Ok(())
     }
 }
@@ -88,6 +105,38 @@ pub struct AddVoteOption<'info> {
     pub vote_option: Account<'info,VoteOption>,
 
     pub system_program: Program<'info, System>,
+}
+
+#[derive(Accounts)]
+#[instruction(poll_id: u64,vote_option_id: u64)]
+pub struct Vote<'info> {
+    #[account(mut)]
+    pub signer: Signer<'info>,
+
+    #[account(
+        mut,
+        seeds = [poll_id.to_le_bytes().as_ref()],
+        bump
+    )]
+    pub poll: Account<'info, Poll>,
+
+    #[account(
+        mut,
+        seeds = [poll_id.to_le_bytes().as_ref(),vote_option_id.to_le_bytes().as_ref()],
+        bump
+    )]
+    pub vote_option: Account<'info,VoteOption>,
+
+    #[account(
+        init,
+        payer = signer,
+        space = 8 + VoteRecord::INIT_SPACE,
+        seeds = [b"vote",poll_id.to_le_bytes().as_ref(),vote_option_id.to_le_bytes().as_ref()],
+        bump
+    )]
+    pub vote_record: Account<'info,VoteRecord>,
+
+    pub system_program: Program<'info,System>
 }
 
 #[account]
