@@ -7,8 +7,6 @@ declare_id!("JAVuBXeBZqXNtS73azhBDAoYaaAFfo4gWXoZe2e7Jf8H");
 
 #[program]
 pub mod basic {
-    use crate::instruction::RecordVoteOption;
-
     use super::*;
 
     pub fn initialize_poll(
@@ -62,6 +60,17 @@ pub mod basic {
 
         Ok(())
     }
+
+    pub fn delete_poll(
+        ctx:Context<DeletePoll>,
+        poll_id: u64
+    ) -> Result<()> {
+        let poll_account = &mut ctx.accounts.poll_account;
+
+        Ok(())
+    }
+
+
 }
 
 #[derive(Accounts)]
@@ -135,6 +144,24 @@ pub struct Vote<'info> {
         bump
     )]
     pub vote_record: Account<'info,VoteRecord>,
+
+    pub system_program: Program<'info,System>
+}
+
+#[derive(Accounts)]
+#[instruction(poll_id: u64)]
+pub struct DeletePoll<'info> {
+    #[account(mut)]
+    pub signer: Signer<'info>,
+
+    #[account(
+        mut,
+        seeds = [poll_id.to_le_bytes().as_ref()],
+        bump,
+        constraint = poll_account.creator == * signer.key,
+        close = signer
+    )]
+    pub poll_account: Account<'info,Poll>,
 
     pub system_program: Program<'info,System>
 }
