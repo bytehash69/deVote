@@ -20,6 +20,13 @@ pub mod basic {
     ) -> Result<()> {
         let poll_account = &mut ctx.accounts.poll;
 
+
+        require!(start_time < end_time, PollError::InvalidPollTime);
+
+
+        let current_time = Clock::get()?.unix_timestamp as u64;
+        require!(end_time > current_time, PollError::InvalidPollEnd);
+
         poll_account.poll_id = poll_id;
         poll_account.question = question;
         poll_account.start_time = start_time;
@@ -55,6 +62,11 @@ pub mod basic {
     ) -> Result<()> {
         let poll_account = &mut ctx.accounts.poll;
 
+        require!(
+            *ctx.accounts.signer.key == poll_account.creator,
+            PollError::Unauthorized
+        );
+
         Ok(())
     }
 
@@ -65,6 +77,14 @@ pub mod basic {
     ) -> Result<()> {
         let poll_account = &mut ctx.accounts.poll;
         let vote_record = &mut ctx.accounts.vote_record;
+
+        let current_time = Clock::get()?.unix_timestamp as u64;
+        require!(
+            current_time >= poll_account.start_time && current_time <= poll_account.end_time,
+            PollError::VotingClosed
+        );
+
+        require!(!vote_record.has_voted, PollError::AlreadyVoted);
 
         vote_record.has_voted = true;
         vote_record.option_id = vote_option_id;
@@ -78,6 +98,10 @@ pub mod basic {
         poll_id: u64
     ) -> Result<()> {
         let poll_account = &mut ctx.accounts.poll_account;
+
+        if poll_account.total_options > 0 {
+            return Err(PollError::VoteOptionExist.into());
+        }
 
         Ok(())
     }
@@ -227,4 +251,20 @@ pub struct VoteRecord {
     pub has_voted: bool,
     pub option_id: u64,
     pub poll_id: u64
+}
+
+#[error_code]
+pub enum PollError {
+    #[msg("Poll start time must be before the end time.")]
+    InvalidPollTime,
+    #[msg("Poll end time cannot be in the past.")]
+    InvalidPollEnd,
+    #[msg("You have already voted in this poll.")]
+    AlreadyVoted,
+    #[msg("Voting for this poll is closed.")]
+    VotingClosed,
+    #[msg("Selected option does not belong to this poll.")]
+    Unauthorized,
+    #[msg("Option still exist for this poll. Remove them before deleting the poll.")]
+    VoteOptionExist,
 }
